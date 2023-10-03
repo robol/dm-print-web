@@ -12,8 +12,7 @@ COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
 COPY dm-print-web/build /app
-COPY dm-print-web.py /app/app.py
-COPY authentication.py /app/
+COPY app.py authentication.py /app/
 
 ENV DM_PRINT_APP_DIRECTORY="/app"
 

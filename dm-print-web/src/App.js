@@ -4,9 +4,7 @@ import AppBody from './AppBody';
 
 
 function App() {
-  return <AppBody>
-    xxx
-  </AppBody>
+  return <AppBody></AppBody>
 }
 
 export default App;

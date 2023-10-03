@@ -21,7 +21,7 @@ app.config['JSON_JSONP_OPTIONAL'] = False
 
 # Configuration data: can be stati or given through environment variables
 printserver = os.getenv("DM_PRINT_PRINTSERVER", "printserver.dm.unipi.it")
-allowed_printers = os.getenv("DM_PRINT_ALLOWED_PRINTERS", "cdc11,cdcpp,cdc4,cdc3,cdcpt").split(",")
+allowed_printers = os.getenv("DM_PRINT_ALLOWED_PRINTERS", "cdc11,cdcpp,cdcsd,cdclf,cdcpt,cdc6").split(",")
 temporary_file_path = os.getenv("DM_PRINT_TMPPATH", "/tmp/")
 app_directory = os.getenv("DM_PRINT_APP_DIRECTORY", "dm-print-web/build")
 

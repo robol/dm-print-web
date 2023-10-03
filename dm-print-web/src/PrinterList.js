@@ -57,7 +57,12 @@ export default function PrinterList({ printers }) {
         </Modal.Footer>
       </Modal>
     </div>
-    <div className="container"><div className="row">
+    <div className="container border-0 border p-3 border-secondary rounded"><div className="row">
+      <div className="col-12 text-start display-6 mb-3">Instructions and available printers</div>
+      <ul className="text-start mx-3">
+        <li>Only PDF files can be printed.</li>
+        <li>The status reported by the printers is not very reliable.</li>
+      </ul>
         {
             printers.map((p, j) => {
                 const handlePrint = () => handlePrintAction(p, setShowModal, setErrorMsg, setModalTitle);

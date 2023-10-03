@@ -25,7 +25,7 @@ export default function AppBody() {
 
   return (
     <div className="App">
-      <h1>DM Print Web 0.1</h1>
+      <h1 className="display-2 my-5">DM Print Web</h1>
       <div className="printers">
         <PrinterList printers={printers}></PrinterList>
       </div>

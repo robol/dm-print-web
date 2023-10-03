@@ -18,7 +18,7 @@ function handlePrintAction(p, setShowModal, setErrorMsg, setModalTitle) {
             method: 'POST', body: formData
         })
 
-        if (res.status != 200) {
+        if (res.status !== 200) {
             const msg = await res.json()
             setErrorMsg(msg.result)
             setModalTitle("Error")

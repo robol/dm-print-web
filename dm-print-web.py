@@ -6,11 +6,16 @@
 import tempfile
 import cups, os
 
-from flask import Flask, request, send_from_directory
-from flask_json import FlaskJSON, JsonError, json_response, as_json
+from flask import Flask, request, send_from_directory, send_file
+from flask_json import FlaskJSON, JsonError, json_response
+
+from authentication import Authentication
+
 
 app = Flask(__name__, static_folder=None)
+auth = Authentication(app)
 
+app.config['BASIC_AUTH_FORCE'] = True
 app.config['JSON_ADD_STATUS'] = False
 app.config['JSON_JSONP_OPTIONAL'] = False
 
@@ -58,6 +63,10 @@ def printFile():
 
     res.headers.add('Access-Control-Allow-Origin', '*')
     return res
+
+@app.route("/")
+def index():
+    return send_file(os.path.join(app_directory, 'index.html'))
 
 @app.route("/<path:path>")
 def build(path):

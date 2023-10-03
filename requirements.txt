@@ -1,3 +1,5 @@
 pycups
 Flask
 Flask-JSON
+Flask-BasicAuth
+ldap3

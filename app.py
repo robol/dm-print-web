@@ -35,7 +35,6 @@ GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
 client = WebApplicationClient(GOOGLE_CLIENT_ID)
 
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 # Flask-Login configuration
 login_manager = LoginManager()
@@ -55,7 +54,11 @@ app_directory = os.environ.get("DM_PRINT_APP_DIRECTORY", "dm-print-web/build")
 
 conn = cups.Connection(printserver)
 
-print(GOOGLE_CLIENT_ID)
+preferered_scheme = os.environ.get("DM_PRINT_PREFERRED_URL_SCHEME", 'https')
+
+# This is needed behind reverse proxies and the like
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
 
 ###
 # API endpoints
@@ -106,6 +109,7 @@ def printFile():
 
 @app.route("/")
 def index():
+    print(current_user)
     if current_user.is_authenticated:
         return send_file(os.path.join(app_directory, 'index.html'))
     else:
@@ -126,7 +130,7 @@ def login():
     # scopes that let you retrieve user's profile from Google
     request_uri = client.prepare_request_uri(
         authorization_endpoint,
-        redirect_uri=request.base_url + "/callback",
+        redirect_uri=url_for('callback', _external = True, _scheme = preferered_scheme),
         scope=["openid", "email", "profile"],
     )
 
@@ -148,7 +152,7 @@ def callback():
     token_url, headers, body = client.prepare_token_request(
         token_endpoint,
         authorization_response=request.url,
-        redirect_url=request.base_url,
+        redirect_url=url_for('callback', _external = True, _scheme = preferered_scheme),
         code=code,
     )
     token_response = requests.post(
@@ -206,9 +210,9 @@ def build(path):
     return send_from_directory(app_directory, path)
 
 if __name__ == "__main__":
-    print("DM-PRINT-WEB 0.1")
+    print(" * DM-PRINT-WEB 0.1 starting")
 
-    app.run(debug = (os.getenv("DM_PRINT_DEBUG", "1") == "1"))
+    app.run(debug = (os.environ.get("DM_PRINT_DEBUG", "0") == "1"))
 
 
 

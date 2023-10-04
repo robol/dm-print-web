@@ -3,3 +3,8 @@ Flask
 Flask-JSON
 Flask-BasicAuth
 ldap3
+gunicorn
+flask-login
+oauthlib
+requests
+Werkzeug==2.3.0

@@ -12,8 +12,9 @@ COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
 COPY dm-print-web/build /app
-COPY app.py authentication.py /app/
+COPY app.py users.py /app/
+COPY templates /app/
 
 ENV DM_PRINT_APP_DIRECTORY="/app"
 
-CMD [ "python3", "-m" , "flask", "run", "--host=0.0.0.0"]
+CMD [ "gunicorn", "-b" , "0.0.0.0:5000", "-w", "4", "app:app"]

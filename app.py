@@ -63,6 +63,10 @@ allowed_printers = os.environ.get("DM_PRINT_ALLOWED_PRINTERS", "cdc11,cdcpp,cdcs
 temporary_file_path = os.environ.get("DM_PRINT_TMPPATH", "/tmp/")
 app_directory = os.environ.get("DM_PRINT_APP_DIRECTORY", "dm-print-web/build")
 
+# The .setServer / .setPort calls are reduntant, but are apparently may be needed when the 
+# printerserver is outside the local network. See https://github.com/OpenPrinting/pycups/issues/30
+cups.setServer(printserver)
+cups.setPort(631)
 conn = cups.Connection(printserver)
 
 # Session setup
@@ -99,9 +103,13 @@ def printFile():
         file.save(newpath)
 
         # Print the new file?
-        conn.printFile(request.form.get('printer'), newpath, filename, {})
+        printer_name = request.form.get('printer')
+        conn.printFile(printer_name, newpath, filename, {})
 
         os.remove(newpath)
+
+        # Log the print
+        print(" * User %s printed %s on %s" % (current_user.email, filename, printer_name))
 
         res = json_response(
             result = "OK"

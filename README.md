@@ -12,6 +12,7 @@ sudo apt-get install libcups2-dev # or equivalent
 python3 -mvenv env
 . env/bin/activate
 pip install -r requirements.txt
+export DM_PRINT_PREFERRED_URL_SCHEME=http
 ./app.py
 
 # In a separate terminal

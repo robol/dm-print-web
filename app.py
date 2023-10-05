@@ -7,9 +7,9 @@ from enum import unique
 import tempfile
 import cups, os
 
-from flask import Flask, request, send_from_directory, send_file, render_template, redirect, url_for
+from flask import Flask, session, request, send_from_directory, send_file, render_template, redirect, url_for
 from flask_json import json_response
-
+from flask_session import Session
 from flask_login import (
     LoginManager,
     current_user,
@@ -17,17 +17,23 @@ from flask_login import (
     login_user,
     logout_user,
 )
-
 from oauthlib.oauth2 import WebApplicationClient
 import requests, json
 from users import User
 
 app = Flask(__name__, static_folder=None)
-app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(24)
 
 app.config['BASIC_AUTH_FORCE'] = True
 app.config['JSON_ADD_STATUS'] = False
 app.config['JSON_JSONP_OPTIONAL'] = False
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY") or os.urandom(24)
+app.config['SESSION_TYPE'] = 'filesystem'
+
+# This is needed behind reverse proxies to avoid oauthlib complaining if the requests arrives 
+# over an HTTP connection, instead of an HTTPS one.
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
+preferered_scheme = os.environ.get("DM_PRINT_PREFERRED_URL_SCHEME", 'https')
 
 # OAuth 2.0 configuration
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
@@ -35,16 +41,21 @@ GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
 client = WebApplicationClient(GOOGLE_CLIENT_ID)
 
-
 # Flask-Login configuration
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-users = {}
+def user_session_key(user_id):
+    """Generate a unique string identifying the user in the current session"""
+    return 'users/%s' % user_id
 
 @login_manager.user_loader
 def load_user(user_id):
-    return users[user_id]
+    user_key = user_session_key(user_id)
+    if user_key in session:
+        return User(json.loads(session[user_key]))
+    else:
+        return None
 
 # Configuration data: can be stati or given through environment variables
 printserver = os.environ.get("DM_PRINT_PRINTSERVER", "printserver.dm.unipi.it")
@@ -54,11 +65,8 @@ app_directory = os.environ.get("DM_PRINT_APP_DIRECTORY", "dm-print-web/build")
 
 conn = cups.Connection(printserver)
 
-preferered_scheme = os.environ.get("DM_PRINT_PREFERRED_URL_SCHEME", 'https')
-
-# This is needed behind reverse proxies and the like
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-
+# Session setup
+Session(app)
 
 ###
 # API endpoints
@@ -88,7 +96,6 @@ def printFile():
     else:
         # Create a temporary folder
         newpath = os.path.join(temporary_file_path, tempfile.mktemp() + ".pdf")
-        print("Saving temporary file in %s" % newpath)
         file.save(newpath)
 
         # Print the new file?
@@ -103,14 +110,23 @@ def printFile():
     res.headers.add('Access-Control-Allow-Origin', '*')
     return res
 
+@app.route("/userinfo")
+def userinfo():
+    if current_user.is_authenticated:
+        return json_response(user = { 
+            'email': current_user.email, 'name': current_user.name, 
+            'id': current_user.get_id()
+        })
+    else:
+        return json_response(user = None)
+
 ###
 # Static web pages and login
 ###
 
 @app.route("/")
 def index():
-    print(current_user)
-    if current_user.is_authenticated:
+    if current_user.get_id():
         return send_file(os.path.join(app_directory, 'index.html'))
     else:
         return render_template("login.html")
@@ -118,7 +134,6 @@ def index():
 # Login
 def get_google_provider_cfg():
     return requests.get(GOOGLE_DISCOVERY_URL).json()
-
 
 @app.route("/login")
 def login():
@@ -172,10 +187,6 @@ def callback():
     uri, headers, body = client.add_token(userinfo_endpoint)
     userinfo_response = requests.get(uri, headers=headers, data=body)
 
-    result = result + "<p>token_response: " + token_response.text + "</p>"
-
-    # return result
-
     # You want to make sure their email is verified.
     # The user authenticated with Google, authorized your
     # app, and now you've verified their email through Google!
@@ -189,7 +200,7 @@ def callback():
 
     # Create a user in your db with the information provided by Google
     user = User(unique_id, users_name, users_email, picture)
-    users[unique_id] = user
+    session[user_session_key(unique_id)] = user.to_json()
 
     # Begin user session by logging the user in
     login_user(user)
@@ -202,6 +213,7 @@ def callback():
 @app.route("/logout")
 @login_required
 def logout():
+    users.pop(current_user.get_id())
     logout_user()
     return redirect(url_for("index"))        
 

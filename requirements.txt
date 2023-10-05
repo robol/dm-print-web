@@ -8,3 +8,4 @@ flask-login
 oauthlib
 requests
 Werkzeug==2.3.0
+Flask-Session

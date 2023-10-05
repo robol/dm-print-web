@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import PrinterList from './PrinterList';
 
 async function loadPrinters() {
-    const res = await fetch("/getPrinters")
+    const res = await fetch("/getPrinters", {
+      credentials: 'include'
+    })
     const data = await res.json()
   
     return data["printers"]

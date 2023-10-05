@@ -15,7 +15,7 @@ function handlePrintAction(p, setShowModal, setErrorMsg, setModalTitle) {
         formData.append('printer', p.name)
 
         const res = await fetch('/printFile', {
-            method: 'POST', body: formData
+            method: 'POST', body: formData, credentials: 'include'
         })
 
         if (res.status !== 200) {

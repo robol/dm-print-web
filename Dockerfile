@@ -17,4 +17,4 @@ COPY templates/login.html /app/templates/login.html
 
 ENV DM_PRINT_APP_DIRECTORY="/app"
 
-CMD [ "gunicorn", "-b" , "0.0.0.0:5000", "-w", "4", "app:app"]
+CMD [ "gunicorn", "-b" , "0.0.0.0:5000", "-w", "3", "app:app"]

@@ -79,7 +79,8 @@ Session(app)
 @app.route("/getPrinters")
 @login_required
 def getPrinters():
-    printers = [ { **p, "name": k } for k,p in conn.getPrinters().items() if k in allowed_printers ]
+    printers = conn.getPrinters()
+    printers = [ { **p, "name": k } for k,p in printers.items() if k in allowed_printers ]
 
     res = json_response(
         status_ = 200,
@@ -206,22 +207,32 @@ def callback():
     else:
         return "User email not available or not verified by Google.", 400
 
-    # Create a user in your db with the information provided by Google
-    user = User(unique_id, users_name, users_email, picture)
-    session[user_session_key(unique_id)] = user.to_json()
+    try:
+        affiliation_data = json.loads(requests.get("https://manage.dm.unipi.it/api/v0/public/staff?email=%s" % users_email).text)
+    except:
+        return "Impossibile controllare le qualifiche dell'utente: riprovare più tardi.", 400
 
-    # Begin user session by logging the user in
-    login_user(user)
+    if 'staff' in affiliation_data and len(affiliation_data['staff']) > 0:
+        # Create a user in your db with the information provided by Google
+        user = User(unique_id, users_name, users_email, picture)
+        session[user_session_key(unique_id)] = user.to_json()
 
-    # Send user back to homepage
-    return redirect(url_for("index"))
+        # Begin user session by logging the user in
+        login_user(user)
+
+        # Send user back to homepage
+        return redirect(url_for("index"))
+    else:        
+        return "Questo utente non ha il permesso di accedere a questo servizio, riservato solo a docenti del Dipartimento di Matematica. Per ulteriori informazioni, contatta help@dm.unipi.it.", 400
+
+    
 
 
 # Logout
 @app.route("/logout")
 @login_required
 def logout():
-    users.pop(current_user.get_id())
+    session.pop(user_session_key(current_user.get_id()))
     logout_user()
     return redirect(url_for("index"))        
 

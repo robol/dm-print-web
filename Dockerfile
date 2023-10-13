@@ -6,7 +6,10 @@ EXPOSE 5000
 
 WORKDIR /app
 
-RUN apt-get update && apt-get -y install build-essential cups libcups2-dev
+RUN apt-get update && \
+	apt-get -y install build-essential cups libcups2-dev \
+	python3-setuptools && \
+	rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
@@ -17,4 +20,4 @@ COPY templates/login.html /app/templates/login.html
 
 ENV DM_PRINT_APP_DIRECTORY="/app"
 
-CMD [ "gunicorn", "-b" , "0.0.0.0:5000", "-w", "3", "app:app"]
+CMD [ "gunicorn", "-b" , "0.0.0.0:5000", "-w", "1", "app:app"]

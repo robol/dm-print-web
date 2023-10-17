@@ -5,32 +5,27 @@ import 'bootstrap/dist/css/bootstrap.css';
 import { useState } from 'react';
 
 
-function handlePrintAction(p, setShowModal, setErrorMsg, setModalTitle) {
-    const fileUpload = document.createElement('input');
-    fileUpload.setAttribute('type', 'file')
-    fileUpload.addEventListener('change', async (evt) => {
-        const file = evt.target.files[0]
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('printer', p.name)
+async function handlePrintAction(p, setShowModal, setErrorMsg, setModalTitle, file, options) {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('printer', p.name)
+    formData.append('options', JSON.stringify(options))
 
-        const res = await fetch('/printFile', {
-            method: 'POST', body: formData, credentials: 'include'
-        })
-
-        if (res.status !== 200) {
-            const msg = await res.json()
-            setErrorMsg(msg.result)
-            setModalTitle("Error")
-            setShowModal(true)
-        }
-        else {
-            setErrorMsg(`The file has been correctly printed on ${p.name}`)
-            setModalTitle("Printing in progress")
-            setShowModal(true)
-        }
+    const res = await fetch('/printFile', {
+        method: 'POST', body: formData, credentials: 'include'
     })
-    fileUpload.click()
+
+    if (res.status !== 200) {
+        const msg = await res.json()
+        setErrorMsg(msg.result)
+        setModalTitle("Error")
+        setShowModal(true)
+    }
+    else {
+        setErrorMsg(`The file has been correctly printed on ${p.name}`)
+        setModalTitle("Printing in progress")
+        setShowModal(true)
+    }
 }
 
 export default function PrinterList({ printers }) {
@@ -65,7 +60,7 @@ export default function PrinterList({ printers }) {
       </ul>
         {
             printers.map((p, j) => {
-                const handlePrint = () => handlePrintAction(p, setShowModal, setErrorMsg, setModalTitle);
+                const handlePrint = (file, options) => handlePrintAction(p, setShowModal, setErrorMsg, setModalTitle, file, options);
                 return <Printer printer={p} handlePrint={handlePrint} key={`printer-${j}`}></Printer>
             })
         }

@@ -6,13 +6,13 @@ import { useState } from 'react';
 export default function Printer({ printer, handlePrint }) {
     const [showDialog, setShowDialog] = useState(false)
 
-    const onPrintSubmit = (confirm) => {
+    const onPrintSubmit = (file, options) => {
         console.log("OnPrintSubmit")
         setShowDialog(false)
 
-        if (confirm) {
+        if (file !== null) {
             console.log("printing")
-            handlePrint();
+            handlePrint(file, options);
         }
     }
 

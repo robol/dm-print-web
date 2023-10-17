@@ -96,6 +96,20 @@ def printFile():
     file = request.files['file']
     filename = file.filename
 
+    try:
+        options = json.loads(request.form.get('options'))
+    except:
+        options = {}
+
+    # Make sure option values are strings
+    for key in options:
+        options[key] = str(options[key])
+
+    # A few default options that we set (see https://github.com/clarkmcc/cloud-print-connector/blob/7dbe9ab13d243e8ad9da1a9ffa1b9032ca115b4d/cups/cups.go#L62)
+    options["collate"] = "true"
+
+    print(options)
+
     if not filename.endswith(".pdf"):
         res = json_response(result = "Only PDF files are allowed", status_ = 403)
     else:
@@ -105,7 +119,7 @@ def printFile():
 
         # Print the new file?
         printer_name = request.form.get('printer')
-        conn.printFile(printer_name, newpath, filename, {})
+        conn.printFile(printer_name, newpath, filename, options)
 
         os.remove(newpath)
 

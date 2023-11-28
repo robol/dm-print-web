@@ -105,7 +105,10 @@ def printFile():
     for key in options:
         options[key] = str(options[key])
 
-    # A few default options that we set (see https://github.com/clarkmcc/cloud-print-connector/blob/7dbe9ab13d243e8ad9da1a9ffa1b9032ca115b4d/cups/cups.go#L62)
+    # A few default options that we set here, or that we 
+    # may expose in the future. 
+    # 
+    # For a complete list, see https://github.com/clarkmcc/cloud-print-connector/blob/7dbe9ab13d243e8ad9da1a9ffa1b9032ca115b4d/cups/cups.go#L62
     options["collate"] = "true"
 
     if not filename.endswith(".pdf"):
@@ -221,6 +224,7 @@ def callback():
 
     try:
         affiliation_data = json.loads(requests.get("https://manage.dm.unipi.it/api/v0/public/staff?email=%s" % users_email).text)
+        affiliation_data = affiliation_data["data"]
     except:
         return "Impossibile controllare le qualifiche dell'utente: riprovare più tardi.", 400
 

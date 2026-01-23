@@ -9,11 +9,13 @@ export default function PrintDialog({ printername, show, onSubmit }) {
     const [numberOfCopies, setNumberOfCopies] = useState(1);
     const [sides, setSides] = useState('one-sided');
     const [file, setFile] = useState(null)
+    const [pageRanges, setPageRanges] = useState('');
 
     const handleClose = () => {
         const options = {
             'copies': numberOfCopies, 
-            'sides': sides
+            'sides': sides,
+            'page-ranges': pageRanges
         }
         onSubmit(file, options)
     }
@@ -39,6 +41,10 @@ export default function PrintDialog({ printername, show, onSubmit }) {
             <Form.Group className="mb-3" controlId="exampleForm.copies">
                 <Form.Label>Number of copies</Form.Label>
                 <Form.Control type="copies" value={numberOfCopies} onChange={(x) => setNumberOfCopies(x.target.value)}/>
+            </Form.Group>
+            <Form.Group className="mb-3" controlId="exampleForm.pageRanges">
+                <Form.Label>Page Range (optional)</Form.Label>
+                <Form.Control type="text" value={pageRanges} onChange={(x) => setPageRanges(x.target.value)} placeholder="e.g., 1-3,5,7-9"/>
             </Form.Group>
             <Form.Group className="mb-3" controlId="exampleForm.sides">
                 <Form.Label>Sides</Form.Label>

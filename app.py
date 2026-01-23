@@ -36,10 +36,10 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 preferered_scheme = os.environ.get("DM_PRINT_PREFERRED_URL_SCHEME", 'https')
 
 # OAuth 2.0 configuration
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
-client = WebApplicationClient(GOOGLE_CLIENT_ID)
+OPENID_CLIENT_ID = os.environ.get("OPENID_CLIENT_ID", "")
+OPENID_CLIENT_SECRET = os.environ.get("OPENID_CLIENT_SECRET", "")
+OPENID_DISCOVERY_URL = os.environ.get("OPENID_DISCOVERY_URL", "")
+client = WebApplicationClient(OPENID_CLIENT_ID)
 
 # Flask-Login configuration
 login_manager = LoginManager()
@@ -156,17 +156,17 @@ def index():
         return render_template("login.html")
 
 # Login
-def get_google_provider_cfg():
-    return requests.get(GOOGLE_DISCOVERY_URL).json()
+def get_openid_provider_cfg():
+    return requests.get(OPENID_DISCOVERY_URL).json()
 
 @app.route("/login")
 def login():
-    # Find out what URL to hit for Google login
-    google_provider_cfg = get_google_provider_cfg()
-    authorization_endpoint = google_provider_cfg["authorization_endpoint"]
+    # Find out what URL to hit for openid login
+    openid_provider_cfg = get_openid_provider_cfg()
+    authorization_endpoint = openid_provider_cfg["authorization_endpoint"]
 
-    # Use library to construct the request for Google login and provide
-    # scopes that let you retrieve user's profile from Google
+    # Use library to construct the request for OpenID login and provide
+    # scopes that let you retrieve user's profile from OpenID
     request_uri = client.prepare_request_uri(
         authorization_endpoint,
         redirect_uri=url_for('callback', _external = True, _scheme = preferered_scheme),
@@ -179,13 +179,11 @@ def login():
 # Login Callback
 @app.route("/login/callback")
 def callback():
-    # Get authorization code Google sent back to you
+    # Get authorization code OpenID sent back to you
     code = request.args.get("code")
 
-    result = "<p>code: " + code + "</p>"
-
-    google_provider_cfg = get_google_provider_cfg()
-    token_endpoint = google_provider_cfg["token_endpoint"]
+    openid_provider_cfg = get_openid_provider_cfg()
+    token_endpoint = openid_provider_cfg["token_endpoint"]
 
     # Prepare and send a request to get tokens! Yay tokens!
     token_url, headers, body = client.prepare_token_request(
@@ -198,29 +196,23 @@ def callback():
         token_url,
         headers=headers,
         data=body,
-        auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET),
+        auth=(OPENID_CLIENT_ID, OPENID_CLIENT_SECRET),
     )
 
     # Parse the tokens!
     client.parse_request_body_response(json.dumps(token_response.json()))
 
     # Now that you have tokens (yay) let's find and hit the URL
-    # from Google that gives you the user's profile information,
-    # including their Google profile image and email
-    userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
+    # from OpenID that gives you the user's profile information,
+    # including their OpenID profile image and email
+    userinfo_endpoint = openid_provider_cfg["userinfo_endpoint"]
     uri, headers, body = client.add_token(userinfo_endpoint)
     userinfo_response = requests.get(uri, headers=headers, data=body)
 
-    # You want to make sure their email is verified.
-    # The user authenticated with Google, authorized your
-    # app, and now you've verified their email through Google!
-    if userinfo_response.json().get("email_verified"):
+    if userinfo_response.json().get("email"):
         unique_id = userinfo_response.json()["sub"]
         users_email = userinfo_response.json()["email"]
-        picture = userinfo_response.json()["picture"]
-        users_name = userinfo_response.json()["given_name"]
-    else:
-        return "User email not available or not verified by Google.", 400
+        users_name = userinfo_response.json()["name"]
 
     try:
         affiliation_data = json.loads(requests.get("https://manage.dm.unipi.it/api/v0/public/staff?email=%s" % users_email).text)
@@ -230,7 +222,7 @@ def callback():
 
     if 'staff' in affiliation_data and len(affiliation_data['staff']) > 0:
         # Create a user in your db with the information provided by Google
-        user = User(unique_id, users_name, users_email, picture)
+        user = User(unique_id, users_name, users_email)
         session[user_session_key(unique_id)] = user.to_json()
 
         # Begin user session by logging the user in
@@ -257,7 +249,11 @@ def build(path):
     return send_from_directory(app_directory, path)
 
 if __name__ == "__main__":
-    print(" * DM-PRINT-WEB 0.1 starting")
+    print(" * DM-PRINT-WEB 0.2 starting")
+
+    print("OPENID CONFIGURATION:")
+    print(" - OPENID_CLIENT_ID: %s" % OPENID_CLIENT_ID)
+    print(" - OPENID_DISCOVERY_URL: %s" % OPENID_DISCOVERY_URL)
 
     app.run(debug = (os.environ.get("DM_PRINT_DEBUG", "0") == "1"))
 

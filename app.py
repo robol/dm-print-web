@@ -105,6 +105,9 @@ def printFile():
     for key in options:
         options[key] = str(options[key])
 
+    if options["page-ranges"] == "":
+        options.pop("page-ranges", None)
+
     # A few default options that we set here, or that we 
     # may expose in the future. 
     # 

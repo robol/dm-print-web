@@ -157,8 +157,14 @@ def printFile():
                     printer_name, newpath, filename, options
                 )
                 print(
-                    " * User %s submitted %s on %s as job %s"
-                    % (current_user.email, filename, printer_name, job_id)
+                    " * User %s submitted %s on %s as job %s with options %s"
+                    % (
+                        current_user.email,
+                        filename,
+                        printer_name,
+                        job_id,
+                        json.dumps(options, sort_keys=True),
+                    )
                 )
                 res = json_response(result="OK", job_id=job_id)
             except CupsTimeoutError as exc:
@@ -314,4 +320,3 @@ if __name__ == "__main__":
     print(" - OPENID_DISCOVERY_URL: %s" % OPENID_DISCOVERY_URL)
 
     app.run(debug = (os.environ.get("DM_PRINT_DEBUG", "0") == "1"))
-

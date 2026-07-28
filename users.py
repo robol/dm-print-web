@@ -5,7 +5,7 @@ class User():
     def __init__(self, *args):
         if len(args) == 1:
             self._id = args[0]["id"]
-            self._name = args[0]["name"]
+            self.name = args[0]["name"]
             self.email = args[0]["email"]
         else:
             self._id = args[0]
@@ -24,5 +24,3 @@ class User():
             "name": self.name, 
             "email": self.email
         })
-
-    

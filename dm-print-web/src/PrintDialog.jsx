@@ -10,12 +10,14 @@ export default function PrintDialog({ printername, show, onSubmit }) {
     const [sides, setSides] = useState('one-sided');
     const [file, setFile] = useState(null)
     const [pageRanges, setPageRanges] = useState('');
+    const [paperSize, setPaperSize] = useState('A4');
 
     const handleClose = () => {
         const options = {
-            'copies': numberOfCopies, 
+            'copies': numberOfCopies,
             'sides': sides,
-            'page-ranges': pageRanges
+            'page-ranges': pageRanges,
+            'media': paperSize
         }
         onSubmit(file, options)
     }
@@ -48,10 +50,17 @@ export default function PrintDialog({ printername, show, onSubmit }) {
             </Form.Group>
             <Form.Group className="mb-3" controlId="exampleForm.sides">
                 <Form.Label>Sides</Form.Label>
-                <Form.Select aria-label="Default select example" onChange={(x) => setSides(x.target.value)}>
+                <Form.Select value={sides} onChange={(x) => setSides(x.target.value)}>
                     <option value="one-sided">One sided</option>
                     <option value="two-sided-long-edge">Two-sided long edge</option>
                     <option value="two-sided-short-edge">Two-sided short edge</option>
+                </Form.Select>
+            </Form.Group>
+            <Form.Group className="mb-3" controlId="exampleForm.paperSize">
+                <Form.Label>Paper size</Form.Label>
+                <Form.Select value={paperSize} onChange={(x) => setPaperSize(x.target.value)}>
+                    <option value="A4">A4</option>
+                    <option value="A3">A3</option>
                 </Form.Select>
             </Form.Group>
         </Form>

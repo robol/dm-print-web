@@ -3,9 +3,8 @@
 #
 # 
 
-from enum import unique
 import tempfile
-import cups, os
+import os
 
 from flask import Flask, session, request, send_from_directory, send_file, render_template, redirect, url_for
 from flask_json import json_response
@@ -20,6 +19,12 @@ from flask_login import (
 from oauthlib.oauth2 import WebApplicationClient
 import requests, json
 from users import User
+from printer_service import (
+    CupsCallError,
+    CupsTimeoutError,
+    IsolatedCupsClient,
+    PrinterCache,
+)
 
 app = Flask(__name__, static_folder=None)
 
@@ -62,12 +67,22 @@ printserver = os.environ.get("DM_PRINT_PRINTSERVER", "printserver.dm.unipi.it")
 allowed_printers = os.environ.get("DM_PRINT_ALLOWED_PRINTERS", "cdc11,cdcpp,cdcsd,cdclf,cdcpt,cdc6").split(",")
 temporary_file_path = os.environ.get("DM_PRINT_TMPPATH", "/tmp/")
 app_directory = os.environ.get("DM_PRINT_APP_DIRECTORY", "dm-print-web/build")
+printer_refresh_interval = float(os.environ.get("DM_PRINT_REFRESH_INTERVAL", "10"))
+printer_refresh_timeout = float(os.environ.get("DM_PRINT_REFRESH_TIMEOUT", "5"))
+printer_submission_timeout = float(os.environ.get("DM_PRINT_SUBMISSION_TIMEOUT", "20"))
+printer_max_backoff = float(os.environ.get("DM_PRINT_MAX_REFRESH_BACKOFF", "60"))
 
-# The .setServer / .setPort calls are reduntant, but are apparently may be needed when the 
-# printerserver is outside the local network. See https://github.com/OpenPrinting/pycups/issues/30
-cups.setServer(printserver)
-cups.setPort(631)
-conn = cups.Connection(printserver)
+cups_client = IsolatedCupsClient(
+    printserver,
+    list_timeout=printer_refresh_timeout,
+    print_timeout=printer_submission_timeout,
+)
+printer_cache = PrinterCache(
+    cups_client,
+    allowed_printers,
+    refresh_interval=printer_refresh_interval,
+    max_backoff=printer_max_backoff,
+)
 
 # Session setup
 Session(app)
@@ -76,15 +91,19 @@ Session(app)
 # API endpoints
 ###
 
+@app.before_request
+def start_printer_cache():
+    printer_cache.start()
+
+
 @app.route("/getPrinters")
 @login_required
 def getPrinters():
-    printers = conn.getPrinters()
-    printers = [ { **p, "name": k } for k,p in printers.items() if k in allowed_printers ]
+    snapshot = printer_cache.snapshot()
 
     res = json_response(
         status_ = 200,
-        printers = printers
+        **snapshot
     )
     res.headers.add('Access-Control-Allow-Origin', '*')
 
@@ -93,19 +112,24 @@ def getPrinters():
 @app.route("/printFile", methods = ['POST'])
 @login_required
 def printFile():
-    file = request.files['file']
+    file = request.files.get('file')
+    if file is None:
+        return json_response(result="A PDF file is required", status_=400)
+
     filename = file.filename
 
     try:
         options = json.loads(request.form.get('options'))
-    except:
+        if not isinstance(options, dict):
+            options = {}
+    except (TypeError, json.JSONDecodeError):
         options = {}
 
     # Make sure option values are strings
     for key in options:
         options[key] = str(options[key])
 
-    if options["page-ranges"] == "":
+    if options.get("page-ranges") == "":
         options.pop("page-ranges", None)
 
     # A few default options that we set here, or that we 
@@ -114,25 +138,56 @@ def printFile():
     # For a complete list, see https://github.com/clarkmcc/cloud-print-connector/blob/7dbe9ab13d243e8ad9da1a9ffa1b9032ca115b4d/cups/cups.go#L62
     options["collate"] = "true"
 
-    if not filename.endswith(".pdf"):
+    if not filename.lower().endswith(".pdf"):
         res = json_response(result = "Only PDF files are allowed", status_ = 403)
     else:
-        # Create a temporary folder
-        newpath = os.path.join(temporary_file_path, tempfile.mktemp() + ".pdf")
-        file.save(newpath)
-
-        # Print the new file?
         printer_name = request.form.get('printer')
-        conn.printFile(printer_name, newpath, filename, options)
+        if printer_name not in allowed_printers:
+            res = json_response(result="Printer is not allowed", status_=400)
+        else:
+            newpath = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    dir=temporary_file_path, suffix=".pdf", delete=False
+                ) as temporary_file:
+                    newpath = temporary_file.name
+                    file.save(temporary_file)
 
-        os.remove(newpath)
-
-        # Log the print
-        print(" * User %s printed %s on %s" % (current_user.email, filename, printer_name))
-
-        res = json_response(
-            result = "OK"
-        )
+                job_id = cups_client.print_file(
+                    printer_name, newpath, filename, options
+                )
+                print(
+                    " * User %s submitted %s on %s as job %s"
+                    % (current_user.email, filename, printer_name, job_id)
+                )
+                res = json_response(result="OK", job_id=job_id)
+            except CupsTimeoutError as exc:
+                app.logger.warning("CUPS print submission timed out: %s", exc)
+                res = json_response(
+                    result=(
+                        "The print server did not respond in time. "
+                        "The job may have been accepted; please check before retrying."
+                    ),
+                    status_=504,
+                )
+            except CupsCallError as exc:
+                app.logger.warning("CUPS print submission failed: %s", exc)
+                res = json_response(
+                    result="The print server is temporarily unavailable",
+                    status_=503,
+                )
+            except Exception:
+                app.logger.exception("Unexpected print submission failure")
+                res = json_response(
+                    result="The print request could not be completed",
+                    status_=500,
+                )
+            finally:
+                if newpath is not None:
+                    try:
+                        os.remove(newpath)
+                    except FileNotFoundError:
+                        pass
 
     res.headers.add('Access-Control-Allow-Origin', '*')
     return res
@@ -259,6 +314,4 @@ if __name__ == "__main__":
     print(" - OPENID_DISCOVERY_URL: %s" % OPENID_DISCOVERY_URL)
 
     app.run(debug = (os.environ.get("DM_PRINT_DEBUG", "0") == "1"))
-
-
 

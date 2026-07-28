@@ -15,7 +15,7 @@ COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
 COPY dm-print-web/build /app
-COPY app.py users.py /app/
+COPY app.py users.py printer_service.py /app/
 COPY templates/login.html /app/templates/login.html
 
 ENV DM_PRINT_APP_DIRECTORY="/app"

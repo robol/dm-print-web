@@ -16,5 +16,5 @@ class Authentication(BasicAuth):
         status, result, response, _ = conn.search(cn, '(objectclass=*)')
         return status
 
-    def check_credentials(self, username, password):        
+    def check_credentials(self, username, password):
         return self.check_ldap_credentials('dc=dm,ou=people,dc=unipi,dc=it', username, password)

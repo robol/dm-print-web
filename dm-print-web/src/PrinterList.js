@@ -11,24 +11,30 @@ async function handlePrintAction(p, setShowModal, setErrorMsg, setModalTitle, fi
     formData.append('printer', p.name)
     formData.append('options', JSON.stringify(options))
 
-    const res = await fetch('/printFile', {
-        method: 'POST', body: formData, credentials: 'include'
-    })
+    try {
+        const res = await fetch('/printFile', {
+            method: 'POST', body: formData, credentials: 'include'
+        })
 
-    if (res.status !== 200) {
-        const msg = await res.json()
-        setErrorMsg(msg.result)
-        setModalTitle("Error")
+        if (!res.ok) {
+            const msg = await res.json().catch(() => ({}))
+            setErrorMsg(msg.result || "The print request failed. Please try again later.")
+            setModalTitle("Error")
+        }
+        else {
+            setErrorMsg(`The file has been submitted to ${p.name}`)
+            setModalTitle("Printing in progress")
+        }
         setShowModal(true)
-    }
-    else {
-        setErrorMsg(`The file has been correctly printed on ${p.name}`)
-        setModalTitle("Printing in progress")
+    } catch (error) {
+        console.error("Could not submit print job", error)
+        setErrorMsg("The print service is temporarily unavailable. Please try again later.")
+        setModalTitle("Error")
         setShowModal(true)
     }
 }
 
-export default function PrinterList({ printers }) {
+export default function PrinterList({ printers, statusStale }) {
     const [showModal, setShowModal] = useState(false);
     const [ErrorMsg, setErrorMsg] = useState("");
     const [ModalTitle, setModalTitle] = useState("");
@@ -53,11 +59,14 @@ export default function PrinterList({ printers }) {
       </Modal>
     </div>
     <div className="container border-0 border p-3 border-secondary rounded"><div className="row">
-      <div className="col-12 text-start display-6 mb-3">Instructions and available printers</div>
-      <ul className="text-start mx-3">
-        <li>Only PDF files can be printed.</li>
-        <li>The status reported by the printers is not very reliable.</li>
-      </ul>
+      <div className="col-12 text-start display-6 mb-3">Available printers</div>
+        {statusStale &&
+          <div className="col-12">
+            <div className="alert alert-warning" role="alert">
+              Printer status is temporarily unavailable or may be out of date.
+            </div>
+          </div>
+        }
         {
             printers.map((p, j) => {
                 const handlePrint = (file, options) => handlePrintAction(p, setShowModal, setErrorMsg, setModalTitle, file, options);

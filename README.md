@@ -17,5 +17,5 @@ export DM_PRINT_PREFERRED_URL_SCHEME=http
 
 # In a separate terminal
 cd dm-print-web
-DANGEROUSLY_DISABLE_HOST_CHECK=true npm start
+npm run dev
 ```
